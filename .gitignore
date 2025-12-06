@@ -1,0 +1,39 @@
+# Ansible Vault files (encrypted secrets)
+vault.yml
+.vault_pass
+*.vault
+
+# Fact cache
+/tmp/ansible_facts_cache/
+
+# Retry files
+*.retry
+
+# Log files
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+env/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Collections installed locally
+collections/
+roles/
+
+# Test output
+tests/output/

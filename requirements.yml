@@ -1,0 +1,20 @@
+---
+# =============================================================================
+# Ansible Collection Requirements
+# =============================================================================
+# Install with: ansible-galaxy collection install -r requirements.yml
+#
+# For AAP/Controller: Add this file to your project or configure
+# collection requirements in the Project settings.
+# =============================================================================
+
+collections:
+  # Red Hat Enterprise Linux System Roles (includes rhc role)
+  # Source: Red Hat Automation Hub (certified) or Ansible Galaxy
+  - name: redhat.rhel_system_roles
+    version: ">=1.23.0"
+
+  # Red Hat Insights Collection (includes compliance role)
+  # Source: Red Hat Automation Hub (certified) or Ansible Galaxy
+  - name: redhat.insights
+    version: ">=1.3.0"
