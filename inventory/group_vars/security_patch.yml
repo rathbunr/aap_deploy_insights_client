@@ -1,0 +1,12 @@
+---
+# inventory/group_vars/security_patch.yml
+# Variables for hosts with outstanding RHSA (security) advisories.
+# These hosts are auto-grouped by the Insights inventory plugin
+# when insights_patching.rhsa_count > 0.
+
+# Flag these hosts as security-critical for reporting
+insights_security_priority: high
+
+# In a future enhancement, this could trigger an automatic
+# Satellite content view promotion + patch cycle:
+# insights_auto_remediate: false

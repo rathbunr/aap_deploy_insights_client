@@ -1,0 +1,17 @@
+---
+# roles/insights_report/defaults/main.yml
+
+# Report output location
+insights_report_output_dir: /tmp/insights-reports
+insights_report_filename: "compliance_report_{{ ansible_date_time.date }}.html"
+
+# Report metadata
+insights_report_title: "Insights Compliance & Patching Report"
+insights_report_organization: "Organization Name"
+
+# Host lists (populated by the calling playbook)
+report_hosts: []
+report_security_hosts: []
+report_bug_hosts: []
+report_enhancement_hosts: []
+report_stale_hosts: []

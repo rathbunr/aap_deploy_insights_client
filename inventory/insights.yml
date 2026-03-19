@@ -1,0 +1,85 @@
+---
+# inventory/insights.yml
+# Red Hat Insights dynamic inventory source
+# Filename MUST end with insights.yml or insights.yaml
+#
+# Authentication: Service account (preferred for automation).
+# Create one at: https://console.redhat.com/iam/service-accounts
+# Required roles: "Inventory Hosts Viewer" + "Patch viewer"
+#
+# For AAP 2.6: Configure credentials via a Custom Credential Type
+# that injects INSIGHTS_CLIENT_ID and INSIGHTS_CLIENT_SECRET as
+# environment variables, or use the built-in "Red Hat Insights"
+# inventory source type.
+
+plugin: redhat.insights.insights
+
+# --- Authentication ---
+# Service account method (recommended for AAP/automation)
+authentication: service_account
+# These are read from env vars; do NOT hardcode secrets here.
+# Set INSIGHTS_CLIENT_ID and INSIGHTS_CLIENT_SECRET in your
+# AAP credential, or export them in your shell for local testing.
+# client_id: "{{ lookup('env', 'INSIGHTS_CLIENT_ID') }}"
+# client_secret: "{{ lookup('env', 'INSIGHTS_CLIENT_SECRET') }}"
+
+# --- Proxy (inventory API calls) ---
+# The Insights inventory plugin uses Python 'requests' under the hood,
+# so it respects standard HTTP proxy environment variables.
+# If AAP / your controller host needs a proxy to reach console.redhat.com,
+# set these in your AAP credential environment injectors or shell:
+#
+#   export HTTPS_PROXY=http://proxy.corp.example.com:8080
+#   export HTTP_PROXY=http://proxy.corp.example.com:8080
+#   export NO_PROXY=localhost,127.0.0.1,.corp.ritcsusa.com
+#
+# In AAP 2.6, add these as extra environment variables in the
+# Custom Credential Type or the inventory source environment overrides.
+
+# --- Host selection ---
+# Use FQDN as ansible_host (matches Satellite/IdM naming)
+selection: fqdn
+
+# Only return hosts that are not stale
+staleness:
+  - fresh
+  - stale
+
+# Only return hosts registered with Insights
+registered_with: insights
+
+# --- Variable prefix ---
+# All Insights host vars will be prefixed with "insights_"
+vars_prefix: insights_
+
+# --- Patching data ---
+# Fetch patching, advisory, and package info for each host
+# This enables the auto-generated patching groups below
+get_patches: true
+get_system_advisories: true
+get_system_packages: false  # Enable if you need package-level detail (slower)
+
+# --- Tags ---
+# Fetch Insights tags and enable tag-based filtering
+get_tags: true
+
+# Filter to only hosts tagged with your environment
+# Uncomment and adjust to match your Insights tagging scheme:
+# filter_tags:
+#   - insights-client/env=prod
+#   - insights-client/org=ngc-space
+
+# --- Auto-generated groups ---
+# Groups based on patching status
+groups:
+  patching: insights_patching.enabled
+  stale: insights_patching.stale
+  bug_patch: insights_patching.rhba_count > 0
+  security_patch: insights_patching.rhsa_count > 0
+  enhancement_patch: insights_patching.rhea_count > 0
+
+# Keyed groups from Insights tags
+# e.g., tag "insights-client/env=prod" creates group "insights_env_prod"
+keyed_groups:
+  - key: insights_tags['insights-client'] | default({})
+    prefix: insights

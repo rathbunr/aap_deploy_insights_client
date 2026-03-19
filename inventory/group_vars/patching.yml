@@ -1,0 +1,6 @@
+---
+# inventory/group_vars/patching.yml
+# Variables for hosts with Insights patching enabled.
+
+# Patching window alignment (informational for reporting)
+insights_patch_window: "Sunday 0200-0600 ET"

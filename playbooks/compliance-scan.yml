@@ -1,0 +1,80 @@
+---
+# playbooks/compliance-scan.yml
+# Installs OpenSCAP prerequisites and runs a compliance scan on all
+# Insights-registered RHEL hosts. Results upload to console.redhat.com.
+#
+# Prerequisites:
+#   - Hosts must be registered with Insights (insights-client installed)
+#   - Compliance policies must be assigned in the Insights portal
+#
+# Usage:
+#   ansible-playbook -i inventory/insights.yml playbooks/compliance-scan.yml
+#
+# AAP 2.6:
+#   Create a Job Template pointing to this playbook.
+#   EE: custom_enterprise_ee (or any EE with redhat.insights collection)
+#   Credentials: Machine credential + Insights service account
+
+- name: Insights Compliance Scan
+  hosts: all
+  become: true
+  gather_facts: true
+
+  handlers:
+    - name: Import shared handlers
+      ansible.builtin.import_tasks: ../tasks/handlers.yml
+
+  pre_tasks:
+    - name: Configure insights-client proxy settings
+      ansible.builtin.include_tasks: ../tasks/configure_insights_proxy.yml
+      when: insights_proxy_enabled | default(false) | bool
+
+    - name: Validate insights-client is installed
+      ansible.builtin.package:
+        name: insights-client
+        state: present
+      register: insights_client_pkg
+
+    - name: Verify host is registered with Insights
+      ansible.builtin.command:
+        cmd: insights-client --status
+      environment: "{{
+        {'HTTPS_PROXY': insights_proxy_url, 'HTTP_PROXY': insights_proxy_url,
+         'NO_PROXY': insights_no_proxy | default('localhost,127.0.0.1')}
+        if (insights_proxy_enabled | default(false) | bool and insights_proxy_url is defined)
+        else {}
+      }}"
+      register: insights_status
+      changed_when: false
+      failed_when: insights_status.rc != 0
+
+    - name: Display Insights registration status
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} - Insights status: {{ insights_status.stdout_lines | last }}"
+
+  tasks:
+    - name: Run Insights compliance (install + scan)
+      ansible.builtin.import_role:
+        name: redhat.insights.compliance
+      when: insights_compliance_run_scan | default(true) | bool
+
+  post_tasks:
+    - name: Capture compliance scan results
+      ansible.builtin.command:
+        cmd: insights-client --compliance
+      environment: "{{
+        {'HTTPS_PROXY': insights_proxy_url, 'HTTP_PROXY': insights_proxy_url,
+         'NO_PROXY': insights_no_proxy | default('localhost,127.0.0.1')}
+        if (insights_proxy_enabled | default(false) | bool and insights_proxy_url is defined)
+        else {}
+      }}"
+      register: compliance_result
+      changed_when: false
+      failed_when: false
+
+    - name: Report scan completion
+      ansible.builtin.debug:
+        msg: >-
+          Compliance scan {{ 'completed successfully' if compliance_result.rc == 0
+          else 'encountered issues (rc=' ~ compliance_result.rc ~ ')' }}
+          on {{ inventory_hostname }}

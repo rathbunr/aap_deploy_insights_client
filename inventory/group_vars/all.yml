@@ -1,0 +1,46 @@
+---
+# inventory/group_vars/all.yml
+# Global variables for all Insights-managed hosts
+
+# --- Insights service account ---
+# Vault-encrypt these values:
+#   ansible-vault encrypt_string 'your-id' --name 'insights_client_id'
+#   ansible-vault encrypt_string 'your-secret' --name 'insights_client_secret'
+# insights_client_id: !vault |
+#   $ANSIBLE_VAULT;1.1;AES256
+#   ...
+# insights_client_secret: !vault |
+#   $ANSIBLE_VAULT;1.1;AES256
+#   ...
+
+# --- Proxy settings (optional) ---
+# Set these if managed hosts require a proxy to reach console.redhat.com.
+# All proxy vars are optional — leave commented out for direct connectivity.
+#
+# HTTP/HTTPS proxy URL (e.g., http://proxy.corp.example.com:8080)
+# insights_proxy_url: ""
+#
+# Proxy authentication (only if the proxy requires credentials)
+# insights_proxy_username: ""
+# insights_proxy_password: ""  # Vault-encrypt this value
+#
+# No-proxy list (comma-separated hostnames/CIDRs that bypass the proxy)
+# insights_no_proxy: "localhost,127.0.0.1,.corp.ritcsusa.com"
+#
+# Set to true to enable proxy configuration on managed hosts.
+# When false (default), proxy tasks are skipped entirely.
+insights_proxy_enabled: false
+
+# --- Compliance settings ---
+# Controls whether the compliance scan actually executes or just installs prereqs
+insights_compliance_run_scan: true
+
+# --- Report settings ---
+insights_report_output_dir: /tmp/insights-reports
+insights_report_filename: "compliance_report_{{ ansible_date_time.date }}.html"
+insights_report_title: "CMMC L2 - Insights Compliance & Patching Report"
+insights_report_organization: "Northrop Grumman - Space Sector"
+
+# --- Notification (optional, for future enhancement) ---
+# insights_report_email_to: "security-team@example.com"
+# insights_report_email_subject: "Weekly Insights Compliance Report"

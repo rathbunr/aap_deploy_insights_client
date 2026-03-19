@@ -1,0 +1,9 @@
+---
+# tasks/handlers.yml
+# Shared handlers for insights-client operations
+
+- name: restart_insights_client
+  ansible.builtin.command:
+    cmd: insights-client --register
+  changed_when: true
+  listen: restart_insights_client

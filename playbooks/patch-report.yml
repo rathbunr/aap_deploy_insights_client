@@ -1,0 +1,50 @@
+---
+# playbooks/patch-report.yml
+# Generates an HTML compliance and patching report from Insights
+# inventory data. Runs on localhost — no SSH to managed hosts needed.
+#
+# The Insights dynamic inventory plugin populates host variables with
+# patching counts (rhsa_count, rhba_count, rhea_count), advisory data,
+# and tag metadata. This playbook collects that data and renders a
+# summary report.
+#
+# Usage:
+#   ansible-playbook -i inventory/insights.yml playbooks/patch-report.yml
+#
+# AAP 2.6:
+#   Run on the control plane (localhost). No machine credential needed.
+#   The report file can be stored as a job artifact.
+
+- name: Gather Insights Inventory Data
+  hosts: all
+  gather_facts: false
+  tasks:
+    # The Insights inventory plugin already populated hostvars.
+    # This play just ensures all hosts are "touched" so their
+    # variables are available to the localhost report play.
+    - name: Acknowledge host in inventory
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}:
+          RHSA={{ insights_patching.rhsa_count | default('N/A') }},
+          RHBA={{ insights_patching.rhba_count | default('N/A') }},
+          RHEA={{ insights_patching.rhea_count | default('N/A') }}
+      when: insights_patching is defined
+
+- name: Generate Compliance and Patching Report
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+
+  tasks:
+    - name: Build report using insights_report role
+      ansible.builtin.include_role:
+        name: insights_report
+      vars:
+        # Pass the full list of managed hosts for the report template
+        report_hosts: "{{ groups['all'] }}"
+        report_security_hosts: "{{ groups['security_patch'] | default([]) }}"
+        report_bug_hosts: "{{ groups['bug_patch'] | default([]) }}"
+        report_enhancement_hosts: "{{ groups['enhancement_patch'] | default([]) }}"
+        report_stale_hosts: "{{ groups['stale'] | default([]) }}"

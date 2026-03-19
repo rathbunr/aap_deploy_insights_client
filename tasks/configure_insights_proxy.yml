@@ -1,0 +1,98 @@
+---
+# tasks/configure_insights_proxy.yml
+# Configures proxy settings in /etc/insights-client/insights-client.conf
+# on managed hosts. Included conditionally when insights_proxy_enabled is true.
+#
+# Required vars (from group_vars/all.yml):
+#   insights_proxy_url        - e.g., http://proxy.corp.example.com:8080
+# Optional vars:
+#   insights_proxy_username   - proxy auth username
+#   insights_proxy_password   - proxy auth password (vault-encrypt)
+#   insights_no_proxy         - comma-separated bypass list
+
+- name: Ensure insights-client.conf exists
+  ansible.builtin.file:
+    path: /etc/insights-client/insights-client.conf
+    state: file
+    owner: root
+    group: root
+    mode: "0644"
+  register: conf_stat
+  failed_when: false
+
+- name: Set proxy URL in insights-client.conf
+  ansible.builtin.lineinfile:
+    path: /etc/insights-client/insights-client.conf
+    regexp: '^#?proxy\s*='
+    line: "proxy={{ insights_proxy_url }}"
+    insertafter: '^\[insights-client\]'
+    state: present
+  when: insights_proxy_url is defined and insights_proxy_url | length > 0
+  notify: restart_insights_client
+
+- name: Set proxy authentication in insights-client.conf
+  ansible.builtin.blockinfile:
+    path: /etc/insights-client/insights-client.conf
+    marker: "# {mark} ANSIBLE MANAGED - PROXY AUTH"
+    block: |
+      proxy_auth=True
+      proxy_username={{ insights_proxy_username }}
+      proxy_password={{ insights_proxy_password }}
+    insertafter: '^proxy='
+    state: present
+  when:
+    - insights_proxy_username is defined
+    - insights_proxy_username | length > 0
+    - insights_proxy_password is defined
+  no_log: true
+  notify: restart_insights_client
+
+- name: Remove proxy authentication block when not configured
+  ansible.builtin.blockinfile:
+    path: /etc/insights-client/insights-client.conf
+    marker: "# {mark} ANSIBLE MANAGED - PROXY AUTH"
+    state: absent
+  when: insights_proxy_username is not defined or insights_proxy_username | length == 0
+
+- name: Set no_proxy bypass list in insights-client.conf
+  ansible.builtin.lineinfile:
+    path: /etc/insights-client/insights-client.conf
+    regexp: '^#?no_proxy\s*='
+    line: "no_proxy={{ insights_no_proxy }}"
+    insertafter: '^proxy='
+    state: present
+  when: insights_no_proxy is defined and insights_no_proxy | length > 0
+  notify: restart_insights_client
+
+- name: Set HTTPS_PROXY in insights-client environment
+  ansible.builtin.lineinfile:
+    path: /etc/sysconfig/insights-client
+    regexp: '^HTTPS_PROXY='
+    line: "HTTPS_PROXY={{ insights_proxy_url }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  when: insights_proxy_url is defined and insights_proxy_url | length > 0
+
+- name: Set HTTP_PROXY in insights-client environment
+  ansible.builtin.lineinfile:
+    path: /etc/sysconfig/insights-client
+    regexp: '^HTTP_PROXY='
+    line: "HTTP_PROXY={{ insights_proxy_url }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  when: insights_proxy_url is defined and insights_proxy_url | length > 0
+
+- name: Set NO_PROXY in insights-client environment
+  ansible.builtin.lineinfile:
+    path: /etc/sysconfig/insights-client
+    regexp: '^NO_PROXY='
+    line: "NO_PROXY={{ insights_no_proxy | default('localhost,127.0.0.1') }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  when: insights_proxy_url is defined and insights_proxy_url | length > 0

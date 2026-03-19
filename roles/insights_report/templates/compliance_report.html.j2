@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ insights_report_title }}</title>
+  <style>
+    :root {
+      --red-hat-red: #EE0000;
+      --dark-bg: #1a1a2e;
+      --card-bg: #16213e;
+      --text-primary: #e0e0e0;
+      --text-muted: #8892b0;
+      --success: #64ffda;
+      --warning: #ffd93d;
+      --danger: #ff6b6b;
+      --info: #6c9bff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Red Hat Display', 'Segoe UI', system-ui, sans-serif;
+      background: var(--dark-bg);
+      color: var(--text-primary);
+      line-height: 1.6;
+      padding: 2rem;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 2rem;
+      background: linear-gradient(135deg, var(--card-bg), #0f3460);
+      border-radius: 12px;
+      border-left: 4px solid var(--red-hat-red);
+    }
+    .header h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .header .meta { color: var(--text-muted); font-size: 0.9rem; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .summary-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .summary-card .value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      display: block;
+    }
+    .summary-card .label {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .value-danger { color: var(--danger); }
+    .value-warning { color: var(--warning); }
+    .value-success { color: var(--success); }
+    .value-info { color: var(--info); }
+    .section { margin-bottom: 2rem; }
+    .section h2 {
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--red-hat-red);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card-bg);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th {
+      background: #0f3460;
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+    td {
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.9rem;
+    }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .badge-danger { background: rgba(255,107,107,0.2); color: var(--danger); }
+    .badge-warning { background: rgba(255,217,61,0.2); color: var(--warning); }
+    .badge-success { background: rgba(100,255,218,0.2); color: var(--success); }
+    .badge-info { background: rgba(108,155,255,0.2); color: var(--info); }
+    .footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    @media print {
+      body { background: #fff; color: #333; padding: 1rem; }
+      .header { background: #f5f5f5; border-left-color: #c00; }
+      .summary-card { background: #f9f9f9; border: 1px solid #ddd; }
+      .value-danger { color: #c00; }
+      .value-warning { color: #b8860b; }
+      .value-success { color: #228b22; }
+      table { background: #fff; }
+      th { background: #eee; color: #333; }
+      td { border-bottom-color: #ddd; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{ insights_report_title }}</h1>
+    <div class="meta">
+      {{ insights_report_organization }}<br>
+      Generated: {{ report_summary.generated_at }} | Hosts: {{ report_summary.total_hosts }}
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-grid">
+    <div class="summary-card">
+      <span class="value value-info">{{ report_summary.total_hosts }}</span>
+      <span class="label">Total Hosts</span>
+    </div>
+    <div class="summary-card">
+      <span class="value value-danger">{{ report_summary.security_patch_count }}</span>
+      <span class="label">Need Security Patches</span>
+    </div>
+    <div class="summary-card">
+      <span class="value value-danger">{{ report_summary.total_rhsa }}</span>
+      <span class="label">Outstanding RHSAs</span>
+    </div>
+    <div class="summary-card">
+      <span class="value value-warning">{{ report_summary.total_rhba }}</span>
+      <span class="label">Outstanding RHBAs</span>
+    </div>
+    <div class="summary-card">
+      <span class="value value-info">{{ report_summary.total_rhea }}</span>
+      <span class="label">Outstanding RHEAs</span>
+    </div>
+    <div class="summary-card">
+      <span class="value {% if report_summary.stale_count | int > 0 %}value-warning{% else %}value-success{% endif %}">{{ report_summary.stale_count }}</span>
+      <span class="label">Stale Hosts</span>
+    </div>
+  </div>
+
+{% if report_security_hosts | length > 0 %}
+  <!-- Security Advisory Hosts (Priority) -->
+  <div class="section">
+    <h2>Hosts with Outstanding Security Advisories (RHSA)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Hostname</th>
+          <th>RHSA</th>
+          <th>RHBA</th>
+          <th>RHEA</th>
+          <th>Stale</th>
+          <th>Last Evaluation</th>
+        </tr>
+      </thead>
+      <tbody>
+{% for host in report_data | default([]) | sort(attribute='rhsa_count', reverse=true) if host.rhsa_count | int > 0 %}
+        <tr>
+          <td>{{ host.hostname }}</td>
+          <td><span class="badge badge-danger">{{ host.rhsa_count }}</span></td>
+          <td><span class="badge badge-warning">{{ host.rhba_count }}</span></td>
+          <td><span class="badge badge-info">{{ host.rhea_count }}</span></td>
+          <td>{% if host.stale %}<span class="badge badge-warning">STALE</span>{% else %}<span class="badge badge-success">OK</span>{% endif %}</td>
+          <td>{{ host.last_evaluation }}</td>
+        </tr>
+{% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+  <!-- Full Host Inventory -->
+  <div class="section">
+    <h2>All Managed Hosts — Patching Summary</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Hostname</th>
+          <th>Patching</th>
+          <th>RHSA</th>
+          <th>RHBA</th>
+          <th>RHEA</th>
+          <th>Stale</th>
+          <th>Last Evaluation</th>
+        </tr>
+      </thead>
+      <tbody>
+{% for host in report_data | default([]) | sort(attribute='hostname') %}
+        <tr>
+          <td>{{ host.hostname }}</td>
+          <td>{% if host.patching_enabled %}<span class="badge badge-success">Enabled</span>{% else %}<span class="badge badge-warning">Disabled</span>{% endif %}</td>
+          <td>{% if host.rhsa_count | int > 0 %}<span class="badge badge-danger">{{ host.rhsa_count }}</span>{% else %}0{% endif %}</td>
+          <td>{% if host.rhba_count | int > 0 %}<span class="badge badge-warning">{{ host.rhba_count }}</span>{% else %}0{% endif %}</td>
+          <td>{{ host.rhea_count }}</td>
+          <td>{% if host.stale %}<span class="badge badge-warning">STALE</span>{% else %}<span class="badge badge-success">OK</span>{% endif %}</td>
+          <td>{{ host.last_evaluation }}</td>
+        </tr>
+{% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% if report_stale_hosts | length > 0 %}
+  <!-- Stale Hosts -->
+  <div class="section">
+    <h2>Stale Hosts — Require Investigation</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Hostname</th>
+          <th>Last Evaluation</th>
+        </tr>
+      </thead>
+      <tbody>
+{% for host in report_data | default([]) if host.stale %}
+        <tr>
+          <td>{{ host.hostname }}</td>
+          <td>{{ host.last_evaluation }}</td>
+        </tr>
+{% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+  <div class="footer">
+    Generated by <strong>infra-insights-compliance</strong> via Ansible Automation Platform |
+    Collection: <code>redhat.insights</code> |
+    {{ insights_report_title }}
+  </div>
+</body>
+</html>

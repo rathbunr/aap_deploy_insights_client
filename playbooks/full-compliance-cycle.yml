@@ -1,0 +1,119 @@
+---
+# playbooks/full-compliance-cycle.yml
+# Orchestrates the complete Insights compliance workflow:
+#   1. Install OpenSCAP prerequisites on all hosts
+#   2. Run compliance scans (results upload to console.redhat.com)
+#   3. Generate a local HTML patching/compliance report
+#
+# Designed for weekly scheduling in AAP 2.6.
+#
+# Usage:
+#   ansible-playbook -i inventory/insights.yml playbooks/full-compliance-cycle.yml
+#
+# Tags:
+#   --tags install    → Only install prerequisites
+#   --tags scan       → Only run compliance scans
+#   --tags report     → Only generate the report
+
+# ------------------------------------------------------------------
+# Play 1: Install prerequisites on all managed hosts
+# ------------------------------------------------------------------
+- name: "Phase 1 — Install Compliance Prerequisites"
+  hosts: all
+  become: true
+  gather_facts: true
+  tags:
+    - install
+    - scan
+
+  handlers:
+    - name: Import shared handlers
+      ansible.builtin.import_tasks: ../tasks/handlers.yml
+
+  pre_tasks:
+    - name: Configure insights-client proxy settings
+      ansible.builtin.include_tasks: ../tasks/configure_insights_proxy.yml
+      when: insights_proxy_enabled | default(false) | bool
+
+  tasks:
+    - name: Install OpenSCAP prerequisites
+      ansible.builtin.import_role:
+        name: redhat.insights.compliance
+        tasks_from: install
+
+# ------------------------------------------------------------------
+# Play 2: Run compliance scans on all managed hosts
+# ------------------------------------------------------------------
+- name: "Phase 2 — Execute Compliance Scans"
+  hosts: all
+  become: true
+  gather_facts: false
+  serial: "50%"
+  tags:
+    - scan
+
+  tasks:
+    - name: Run OpenSCAP compliance scan
+      ansible.builtin.import_role:
+        name: redhat.insights.compliance
+        tasks_from: run
+      register: scan_result
+      ignore_errors: true
+
+    - name: Log scan failures for review
+      ansible.builtin.debug:
+        msg: "WARNING: Compliance scan failed on {{ inventory_hostname }}"
+      when: scan_result is failed
+
+# ------------------------------------------------------------------
+# Play 3: Refresh Insights client data (upload latest results)
+# ------------------------------------------------------------------
+- name: "Phase 3 — Upload Latest Insights Data"
+  hosts: all
+  become: true
+  gather_facts: false
+  tags:
+    - scan
+    - report
+
+  tasks:
+    - name: Run insights-client to upload latest data
+      ansible.builtin.command:
+        cmd: insights-client
+      environment: "{{
+        {'HTTPS_PROXY': insights_proxy_url, 'HTTP_PROXY': insights_proxy_url,
+         'NO_PROXY': insights_no_proxy | default('localhost,127.0.0.1')}
+        if (insights_proxy_enabled | default(false) | bool and insights_proxy_url is defined)
+        else {}
+      }}"
+      register: upload_result
+      changed_when: "'Successfully uploaded report' in upload_result.stdout"
+      failed_when: false
+
+# ------------------------------------------------------------------
+# Play 4: Generate the compliance/patching HTML report
+# ------------------------------------------------------------------
+- name: "Phase 4 — Generate Compliance Report"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+  tags:
+    - report
+
+  tasks:
+    - name: Build HTML compliance report
+      ansible.builtin.include_role:
+        name: insights_report
+      vars:
+        report_hosts: "{{ groups['all'] }}"
+        report_security_hosts: "{{ groups['security_patch'] | default([]) }}"
+        report_bug_hosts: "{{ groups['bug_patch'] | default([]) }}"
+        report_enhancement_hosts: "{{ groups['enhancement_patch'] | default([]) }}"
+        report_stale_hosts: "{{ groups['stale'] | default([]) }}"
+
+    - name: Display report location
+      ansible.builtin.debug:
+        msg: >-
+          Compliance report generated:
+          {{ insights_report_output_dir }}/{{ insights_report_filename }}

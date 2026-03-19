@@ -1,0 +1,18 @@
+---
+# playbooks/compliance-install.yml
+# Installs OpenSCAP prerequisites WITHOUT running a scan.
+# Useful for preparing hosts before a scheduled scan window.
+#
+# Usage:
+#   ansible-playbook -i inventory/insights.yml playbooks/compliance-install.yml
+
+- name: Install Insights Compliance Prerequisites
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Install compliance prerequisites only (no scan)
+      ansible.builtin.import_role:
+        name: redhat.insights.compliance
+        tasks_from: install

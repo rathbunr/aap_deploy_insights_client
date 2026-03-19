@@ -1,0 +1,55 @@
+---
+# roles/insights_report/tasks/main.yml
+
+- name: Ensure report output directory exists
+  ansible.builtin.file:
+    path: "{{ insights_report_output_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Build host data for report
+  ansible.builtin.set_fact:
+    report_data: >-
+      {{
+        report_data | default([]) + [{
+          'hostname': item,
+          'rhsa_count': hostvars[item]['insights_patching']['rhsa_count'] | default(0),
+          'rhba_count': hostvars[item]['insights_patching']['rhba_count'] | default(0),
+          'rhea_count': hostvars[item]['insights_patching']['rhea_count'] | default(0),
+          'patching_enabled': hostvars[item]['insights_patching']['enabled'] | default(false),
+          'stale': hostvars[item]['insights_patching']['stale'] | default(false),
+          'last_evaluation': hostvars[item]['insights_patching']['last_evaluation'] | default('Never'),
+          'tags': hostvars[item]['insights_tags'] | default({})
+        }]
+      }}
+  loop: "{{ report_hosts }}"
+  loop_control:
+    label: "{{ item }}"
+  when: hostvars[item]['insights_patching'] is defined
+
+- name: Calculate summary statistics
+  ansible.builtin.set_fact:
+    report_summary:
+      total_hosts: "{{ report_hosts | length }}"
+      security_patch_count: "{{ report_security_hosts | length }}"
+      bug_patch_count: "{{ report_bug_hosts | length }}"
+      enhancement_patch_count: "{{ report_enhancement_hosts | length }}"
+      stale_count: "{{ report_stale_hosts | length }}"
+      total_rhsa: "{{ report_data | default([]) | map(attribute='rhsa_count') | map('int') | sum }}"
+      total_rhba: "{{ report_data | default([]) | map(attribute='rhba_count') | map('int') | sum }}"
+      total_rhea: "{{ report_data | default([]) | map(attribute='rhea_count') | map('int') | sum }}"
+      generated_at: "{{ ansible_date_time.iso8601 }}"
+
+- name: Render HTML compliance report
+  ansible.builtin.template:
+    src: compliance_report.html.j2
+    dest: "{{ insights_report_output_dir }}/{{ insights_report_filename }}"
+    mode: "0640"
+
+- name: Report generation complete
+  ansible.builtin.debug:
+    msg: >-
+      Report saved to {{ insights_report_output_dir }}/{{ insights_report_filename }}
+      — {{ report_summary.total_hosts }} hosts,
+      {{ report_summary.total_rhsa }} outstanding RHSAs,
+      {{ report_summary.stale_count }} stale.
